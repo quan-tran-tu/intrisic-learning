@@ -7,8 +7,8 @@
 #include <string>
 #include <chrono>
 
-
-struct BenchmarkResult {
+struct BenchmarkResult
+{
     std::string name;
     std::string size;
     double avg_time_ms;
@@ -19,16 +19,18 @@ struct BenchmarkResult {
     float mse;
 };
 
-struct Workload {
-    static std::pair<size_t, size_t> gemm_f32(int M, int N, int K) {
+struct Workload
+{
+    static std::pair<size_t, size_t> gemm_f32(int M, int N, int K)
+    {
         size_t ops = 2ULL * M * N * K;
         size_t bytes = 4ULL * (M * K + K * N + M * N);
         return {ops, bytes};
     }
 };
 
-float calculate_mse(const Tensor2D& ref, const Tensor2D& target);
-void print_report(const std::vector<BenchmarkResult>& results);
+float calculate_mse(const Tensor2D &ref, const Tensor2D &target);
+void print_report(const std::vector<BenchmarkResult> &results);
 
 template <typename TFunc, typename... Args>
 BenchmarkResult run_benchmark(
@@ -37,14 +39,15 @@ BenchmarkResult run_benchmark(
     TFunc kernel_func,
     size_t expected_ops,
     size_t expected_bytes,
-    const Tensor2D& ref_output,
-    Tensor2D& test_output,
-    Args&&... args
-) {
+    const Tensor2D &ref_output,
+    Tensor2D &test_output,
+    Args &&...args)
+{
     const int WARMUP = 2;
     const int ITERATIONS = 20;
-    
-    for(int i=0; i<WARMUP; ++i) {
+
+    for (int i = 0; i < WARMUP; ++i)
+    {
         kernel_func(std::forward<Args>(args)..., test_output);
     }
 
@@ -52,17 +55,20 @@ BenchmarkResult run_benchmark(
     double min_ms = 1e9;
     double max_ms = 0.0;
 
-    for (int i = 0; i < ITERATIONS; ++i) {
+    for (int i = 0; i < ITERATIONS; ++i)
+    {
         auto start = std::chrono::high_resolution_clock::now();
-        
+
         kernel_func(std::forward<Args>(args)..., test_output);
-        
+
         auto end = std::chrono::high_resolution_clock::now();
         double ms = std::chrono::duration<double, std::milli>(end - start).count();
 
         total_ms += ms;
-        if (ms < min_ms) min_ms = ms;
-        if (ms > max_ms) max_ms = ms;
+        if (ms < min_ms)
+            min_ms = ms;
+        if (ms > max_ms)
+            max_ms = ms;
     }
 
     double avg_ms = total_ms / ITERATIONS;
