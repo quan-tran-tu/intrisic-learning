@@ -15,13 +15,19 @@ void randomize(Tensor2D &t)
         t.data().get()[i] = dist(gen);
 }
 
-int main()
+int main(int argc, char** argv)
 {
     std::vector<BenchmarkResult> results;
 
     std::cout << "Initializing Data..." << std::endl;
 
-    const int dim = 256;
+    int dim = 1024;
+
+    for (int i = 1; i < argc; ++i) {
+        if (std::string(argv[i]) == "--dim" && i + 1 < argc) {
+            dim = std::stoi(argv[++i]);
+        }
+    }
     int M = dim, N = dim, K = dim;
     Tensor2D A(M, K), B(K, N), C_ref(M, N), C_out(M, N);
     randomize(A);
@@ -43,6 +49,9 @@ int main()
 
     results.push_back(run_benchmark("GEMM register blocking", dim,
                                     register_blocking_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
+
+    results.push_back(run_benchmark("GEMM cache tiling", dim,
+                                    cache_tiling_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
 
     print_report(results);
 

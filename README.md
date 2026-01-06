@@ -9,5 +9,5 @@ cmake ..
 cmake --build .
 ```
 ```bash
-./bench
+./bench --dim 512
 ```

@@ -13,3 +13,6 @@
 - The current code is constantly reading and writing to `C` for every single `k` step
 - So the idea would be to compute a 4x8 tile of C at once (4 YMM registers), `i` loop is then unrolled by 4
 - Only write back to `C` memory after `k` loop is totally finished
+5. cache_tiling_gemm:
+- The register_blocking_gemm still accesses `B` across the `k` dimension from widely separated memory locations, causing cache lines to be evicted before they can be reused
+- Add 3 outer loops to separate `C` as tiles, and use the register blocking code for each tile
