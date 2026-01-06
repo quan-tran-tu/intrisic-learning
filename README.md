@@ -11,3 +11,7 @@ cmake --build .
 ```bash
 ./bench --dim 512
 ```
+
+#### Result
+- The following result is from running benchmark on an i5-12400
+![benchmark](asset/benchmark.png)

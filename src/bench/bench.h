@@ -27,6 +27,13 @@ struct Workload
         size_t bytes = 4ULL * (M * K + K * N + M * N);
         return {ops, bytes};
     }
+
+    static std::pair<size_t, size_t> gemv_f32(int M, int N)
+    {
+        size_t ops = 2ULL * M * N;
+        size_t bytes = 4ULL * (M * N + N + M);
+        return {ops, bytes};
+    }
 };
 
 float calculate_mse(const Tensor2D &ref, const Tensor2D &target);
@@ -36,6 +43,7 @@ template <typename TFunc, typename... Args>
 BenchmarkResult run_benchmark(
     std::string name,
     int size,
+    std::string type,
     TFunc kernel_func,
     size_t expected_ops,
     size_t expected_bytes,
@@ -74,7 +82,10 @@ BenchmarkResult run_benchmark(
     double avg_ms = total_ms / ITERATIONS;
     float mse = calculate_mse(ref_output, test_output);
 
-    std::string s = std::to_string(size) + "^3";
+    std::string s;
+    if (type == "gemm") s = std::to_string(size) + "^3";
+    else if (type == "gemv") s = std::to_string(size) + "^2";
+    else s = "unknown";
 
     return {name, s, avg_ms, min_ms, max_ms, expected_ops, expected_bytes, mse};
 }
