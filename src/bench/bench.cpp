@@ -28,7 +28,7 @@ float calculate_mse(const Tensor2D &ref, const Tensor2D &target)
 void print_report(const std::vector<BenchmarkResult> &results)
 {
     std::cout << "\n"
-              << std::string(110, '=') << "\n";
+              << std::string(105, '=') << "\n";
     std::cout << std::left
               << std::setw(25) << "Kernel"
               << std::setw(12) << "Size"
@@ -37,10 +37,20 @@ void print_report(const std::vector<BenchmarkResult> &results)
               << std::setw(15) << "GFLOPS"
               << std::setw(15) << "GB/s"
               << std::setw(12) << "MSE" << "\n";
-    std::cout << std::string(110, '-') << "\n";
+    std::cout << std::string(105, '-') << "\n";
+
+    std::string prev_type;
+    bool first = true;
 
     for (const auto &res : results)
     {
+        if (!first && res.type != prev_type)
+        {
+            std::cout << std::string(105, '-') << "\n";
+        }
+        first = false;
+        prev_type = res.type;
+
         // GFLOPS = 10^9 ops / sec
         double gflops = (double)res.total_ops / (res.avg_time_ms * 1e6);
         // GB/s = 10^9 bytes / sec
@@ -58,5 +68,5 @@ void print_report(const std::vector<BenchmarkResult> &results)
                   << std::setw(15) << std::setprecision(2) << gbs
                   << std::setw(12) << std::setprecision(5) << res.mse << "\n";
     }
-    std::cout << std::string(110, '=') << "\n";
+    std::cout << std::string(105, '=') << "\n";
 }

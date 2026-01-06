@@ -221,10 +221,10 @@ void cache_tiling_gemm(const Tensor2D &A, const Tensor2D &B, Tensor2D &C)
 
     std::fill(c_ptr, c_ptr + (A_rows * B_cols), 0.0f);
 
-    for (int jc = 0; jc < B_cols; jc += NC) 
+    for (int jc = 0; jc < B_cols; jc += NC)
     {
         int j_min = std::min(jc + NC, B_cols);
-        for (int kc = 0; kc < A_cols; kc += KC) 
+        for (int kc = 0; kc < A_cols; kc += KC)
         {
             int k_min = std::min(kc + KC, A_cols);
             for (int ic = 0; ic < A_rows; ic += MC)
@@ -310,4 +310,8 @@ void cache_tiling_gemm(const Tensor2D &A, const Tensor2D &B, Tensor2D &C)
             }
         }
     }
+}
+
+void gemm(const Tensor2D &A, const Tensor2D &B, Tensor2D &C)
+{
 }

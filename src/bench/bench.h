@@ -9,6 +9,7 @@
 
 struct BenchmarkResult
 {
+    std::string type;
     std::string name;
     std::string size;
     double avg_time_ms;
@@ -83,9 +84,12 @@ BenchmarkResult run_benchmark(
     float mse = calculate_mse(ref_output, test_output);
 
     std::string s;
-    if (type == "gemm") s = std::to_string(size) + "^3";
-    else if (type == "gemv") s = std::to_string(size) + "^2";
-    else s = "unknown";
+    if (type == "gemm")
+        s = std::to_string(size) + "^3";
+    else if (type == "gemv")
+        s = std::to_string(size) + "^2";
+    else
+        s = "unknown";
 
-    return {name, s, avg_ms, min_ms, max_ms, expected_ops, expected_bytes, mse};
+    return {type, name, s, avg_ms, min_ms, max_ms, expected_ops, expected_bytes, mse};
 }

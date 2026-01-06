@@ -16,3 +16,5 @@
 5. cache_tiling_gemm:
 - The register_blocking_gemm still accesses `B` across the `k` dimension from widely separated memory locations, causing cache lines to be evicted before they can be reused
 - Add 3 outer loops to separate `C` as tiles, and use the register blocking code for each tile
+6. gemm:
+- Add `#pragma once parallel for`
