@@ -1,4 +1,4 @@
-A project where i learn intrisic stuffs, currently AVX2.
+A project where i learn intrinsic stuffs, currently AVX2.
 
 #### How to use
 - I haven't add flags for MSVC yet, so run on WSL or Linux for now
@@ -13,5 +13,5 @@ cmake --build .
 ```
 
 #### Result
-- The following result is from running benchmark on an i5-12400
+- The following result is from running benchmark on an i5-14500
 ![benchmark](asset/benchmark.png)

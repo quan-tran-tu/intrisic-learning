@@ -33,7 +33,7 @@ void print_report(const std::vector<BenchmarkResult> &results)
               << std::setw(25) << "Kernel"
               << std::setw(12) << "Size"
               << std::setw(12) << "Avg(ms)"
-              << std::setw(18) << "Min/Max(ms)"
+              << std::setw(18) << "Max/Min(ms)"
               << std::setw(15) << "GFLOPS"
               << std::setw(15) << "GB/s"
               << std::setw(12) << "MSE" << "\n";

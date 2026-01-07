@@ -43,23 +43,26 @@ int main(int argc, char **argv)
 
     auto gemm_load = Workload::gemm_f32(M, N, K);
 
-    // results.push_back(run_benchmark("GEMM naive", dim, "gemm",
-    //                                 naive_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
+    results.push_back(run_benchmark("GEMM naive", dim, "gemm",
+                                    naive_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
 
-    // results.push_back(run_benchmark("GEMM ikj", dim, "gemm",
-    //                                 ikj_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
+    results.push_back(run_benchmark("GEMM ikj", dim, "gemm",
+                                    ikj_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
 
-    // results.push_back(run_benchmark("GEMM ikj broadcast a", dim, "gemm",
-    //                                 ikj_broadcast_a_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
+    results.push_back(run_benchmark("GEMM ikj broadcast a", dim, "gemm",
+                                    ikj_broadcast_a_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
 
-    // results.push_back(run_benchmark("GEMM register blocking", dim, "gemm",
-    //                                 register_blocking_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
+    results.push_back(run_benchmark("GEMM register blocking", dim, "gemm",
+                                    register_blocking_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
 
-    // results.push_back(run_benchmark("GEMM cache tiling", dim, "gemm",
-    //                                 cache_tiling_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
+    results.push_back(run_benchmark("GEMM cache tiling", dim, "gemm",
+                                    cache_tiling_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
 
-    results.push_back(run_benchmark("GEMM", dim, "gemm",
-                                    gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
+    results.push_back(run_benchmark("GEMM cache tiling packed", dim, "gemm",
+                                    cache_tiling_packed_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
+
+    results.push_back(run_benchmark("GEMM packed parallel", dim, "gemm",
+                                    packed_parallel_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
 
     // GEMV
     std::cout << "Running GEMV Reference..." << std::endl;
@@ -74,14 +77,14 @@ int main(int argc, char **argv)
 
     auto gemv_load = Workload::gemv_f32(M, N);
 
-    // results.push_back(run_benchmark("GEMV naive", dim, "gemv",
-    //                                 naive_gemv, gemv_load.first, gemv_load.second, y_ref, y_out, W, x));
+    results.push_back(run_benchmark("GEMV naive", dim, "gemv",
+                                    naive_gemv, gemv_load.first, gemv_load.second, y_ref, y_out, W, x));
 
-    // results.push_back(run_benchmark("GEMV unroll j", dim, "gemv",
-    //                                 unroll_j_gemv, gemv_load.first, gemv_load.second, y_ref, y_out, W, x));
+    results.push_back(run_benchmark("GEMV unroll j", dim, "gemv",
+                                    unroll_j_gemv, gemv_load.first, gemv_load.second, y_ref, y_out, W, x));
 
-    // results.push_back(run_benchmark("GEMV unroll i j", dim, "gemv",
-    //                                 unroll_i_j_gemv, gemv_load.first, gemv_load.second, y_ref, y_out, W, x));
+    results.push_back(run_benchmark("GEMV unroll i j", dim, "gemv",
+                                    unroll_i_j_gemv, gemv_load.first, gemv_load.second, y_ref, y_out, W, x));
 
     results.push_back(run_benchmark("GEMV", dim, "gemv",
                                     gemv, gemv_load.first, gemv_load.second, y_ref, y_out, W, x));

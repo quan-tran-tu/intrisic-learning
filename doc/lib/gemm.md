@@ -16,5 +16,7 @@
 5. cache_tiling_gemm:
 - The register_blocking_gemm still accesses `B` across the `k` dimension from widely separated memory locations, causing cache lines to be evicted before they can be reused
 - Add 3 outer loops to separate `C` as tiles, and use the register blocking code for each tile
-6. gemm:
-- Add `#pragma once parallel for`
+6. cache_tiling_packed_gemm:
+- This implementation deals with the `B` access jumping problem by packing `B` would-be accessed elements in a contiguous layout
+7. packed_parallel_gemm:
+- Add parallelism to the `cache_tiling_packed_gemm`, each thread will operate on its own packed buffer
