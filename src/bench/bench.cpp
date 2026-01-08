@@ -4,25 +4,30 @@
 #include <cmath>
 #include <sstream>
 
-float calculate_mse(const Tensor2D &ref, const Tensor2D &target)
+float calculate_mse(const Tensor<float> &ref, const Tensor<float> &target)
 {
-    if (ref.rows() != target.rows() || ref.cols() != target.cols())
+    if (ref.height() != target.height() || ref.width() != target.width())
     {
         std::cerr << "dimension mismatch" << std::endl;
         return 9999.0f;
     }
 
-    float mse = 0.0f;
-    int size = ref.rows() * ref.cols();
-    const float *r_ptr = ref.data().get();
-    const float *t_ptr = target.data().get();
+    double sum_sq_diff = 0.0;
+    int h = ref.height();
+    int w = ref.width();
 
-    for (int i = 0; i < size; ++i)
+    for (int y = 0; y < h; ++y)
     {
-        float diff = r_ptr[i] - t_ptr[i];
-        mse += diff * diff;
+        const float *r_ptr = ref.data() + (y * ref.stride());
+        const float *t_ptr = target.data() + (y * target.stride());
+
+        for (int x = 0; x < w; ++x)
+        {
+            float diff = r_ptr[x] - t_ptr[x];
+            sum_sq_diff += diff * diff;
+        }
     }
-    return mse / size;
+    return static_cast<float>(sum_sq_diff / (h * w));
 }
 
 void print_report(const std::vector<BenchmarkResult> &results)

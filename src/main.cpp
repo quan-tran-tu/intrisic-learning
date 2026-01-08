@@ -6,18 +6,29 @@
 #include <iostream>
 #include <vector>
 #include <random>
+#include <xmmintrin.h>
+#include <pmmintrin.h>
 
-void randomize(Tensor2D &t)
+void randomize(Tensor<float> &t)
 {
     std::mt19937 gen(42);
     std::uniform_real_distribution<float> dist(-0.5f, 0.5f);
-    int size = t.rows() * t.cols();
-    for (int i = 0; i < size; ++i)
-        t.data().get()[i] = dist(gen);
+    int h = t.height();
+    int w = t.width();
+    for (int y = 0; y < h; ++y)
+    {
+        float *row_ptr = t.data() + (y * t.stride());
+
+        for (int x = 0; x < w; ++x)
+            row_ptr[x] = dist(gen);
+    }
 }
 
 int main(int argc, char **argv)
 {
+    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+    _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+
     std::vector<BenchmarkResult> results;
 
     std::cout << "Initializing Data..." << std::endl;
@@ -34,7 +45,7 @@ int main(int argc, char **argv)
 
     // GEMM
     int M = dim, N = dim, K = dim;
-    Tensor2D A(M, K), B(K, N), C_ref(M, N), C_out(M, N);
+    Tensor<float> A(M, K), B(K, N), C_ref(M, N), C_out(M, N);
     randomize(A);
     randomize(B);
 
@@ -43,8 +54,8 @@ int main(int argc, char **argv)
 
     auto gemm_load = Workload::gemm_f32(M, N, K);
 
-    results.push_back(run_benchmark("GEMM naive", dim, "gemm",
-                                    naive_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
+    // results.push_back(run_benchmark("GEMM naive", dim, "gemm",
+    //                                 naive_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
 
     results.push_back(run_benchmark("GEMM ikj", dim, "gemm",
                                     ikj_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
@@ -67,8 +78,8 @@ int main(int argc, char **argv)
     // GEMV
     std::cout << "Running GEMV Reference..." << std::endl;
 
-    Tensor2D W(M, N);
-    Tensor2D x(N, 1), y_ref(M, 1), y_out(M, 1);
+    Tensor<float> W(M, N);
+    Tensor<float> x(N, 1), y_ref(M, 1), y_out(M, 1);
 
     randomize(W);
     randomize(x);

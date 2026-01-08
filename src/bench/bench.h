@@ -37,7 +37,7 @@ struct Workload
     }
 };
 
-float calculate_mse(const Tensor2D &ref, const Tensor2D &target);
+float calculate_mse(const Tensor<float> &ref, const Tensor<float> &target);
 void print_report(const std::vector<BenchmarkResult> &results);
 
 template <typename TFunc, typename... Args>
@@ -48,8 +48,8 @@ BenchmarkResult run_benchmark(
     TFunc kernel_func,
     size_t expected_ops,
     size_t expected_bytes,
-    const Tensor2D &ref_output,
-    Tensor2D &test_output,
+    const Tensor<float> &ref_output,
+    Tensor<float> &test_output,
     Args &&...args)
 {
     const int WARMUP = 2;

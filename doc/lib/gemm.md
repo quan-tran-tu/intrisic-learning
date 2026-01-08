@@ -3,7 +3,7 @@
 1. naive_gemm:
 - Naive 3 loops ijk calculates each cells of `C`
 2. ikj_gemm:
-- Naive ijk loops accesses `b_ptr` by jumping `B_cols`, which is inefficient
+- Naive ijk loops accesses `b_ptr` by jumping `B_stride`, which is inefficient
 - Changing to ikj loops is better since `a` can be reused and `B` can now be accessed contiguously
 - `j` will be processed in steps of 8 element
 3. ikj_broadcast_a_gemm:
