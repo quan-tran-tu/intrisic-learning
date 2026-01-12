@@ -3,104 +3,115 @@
 #include "lib/gemm.h"
 #include "lib/gemv.h"
 
-#include <iostream>
-#include <vector>
 #include <random>
-#include <xmmintrin.h>
-#include <pmmintrin.h>
+#include <string>
+
+// GEMM
+struct GemmParams
+{
+    int M, N, K;
+};
+struct GemmData
+{
+    Tensor<float> A, B, output;
+    GemmData(int m, int n, int k) : A(m, k), B(k, n), output(m, n) {}
+};
+
+// GEMV
+struct GemvParams
+{
+    int M, N;
+};
+struct GemvData
+{
+    Tensor<float> W, x, output;
+    GemvData(int m, int n) : W(m, n), x(1, n), output(1, m) {} // note: x is (N x 1), output is (M x 1)
+};
 
 void randomize(Tensor<float> &t)
 {
-    std::mt19937 gen(42);
+    static std::mt19937 gen(42);
     std::uniform_real_distribution<float> dist(-0.5f, 0.5f);
-    int h = t.height();
-    int w = t.width();
-    for (int y = 0; y < h; ++y)
-    {
-        float *row_ptr = t.data() + (y * t.stride());
-
-        for (int x = 0; x < w; ++x)
-            row_ptr[x] = dist(gen);
-    }
+    int size = t.height() * t.width();
+    float *ptr = t.data();
+    for (int i = 0; i < size; ++i)
+        ptr[i] = dist(gen);
 }
 
 int main(int argc, char **argv)
 {
-    _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
-    _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+    // _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
+    // _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
 
-    std::vector<BenchmarkResult> results;
+    // ==========================================
+    // GEMM BENCHMARK SUITE
+    // ==========================================
+    BenchmarkSuite<GemmParams, GemmData> gemm_suite("GEMM F32");
 
-    std::cout << "Initializing Data..." << std::endl;
-
-    int dim = 1024;
-
-    for (int i = 1; i < argc; ++i)
+    gemm_suite.complexity_calc = [](const GemmParams &p)
     {
-        if (std::string(argv[i]) == "--dim" && i + 1 < argc)
-        {
-            dim = std::stoi(argv[++i]);
-        }
-    }
+        size_t ops = 2ULL * p.M * p.N * p.K;
+        size_t bytes = 4ULL * (p.M * p.K + p.K * p.N + p.M * p.N);
+        return std::make_pair(ops, bytes);
+    };
 
-    // GEMM
-    int M = dim, N = dim, K = dim;
-    Tensor<float> A(M, K), B(K, N), C_ref(M, N), C_out(M, N);
-    randomize(A);
-    randomize(B);
+    gemm_suite.params_to_string = [](const GemmParams &p)
+    {
+        return std::to_string(p.M) + "x" + std::to_string(p.N) + "x" + std::to_string(p.K);
+    };
 
-    std::cout << "Running GEMM Reference..." << std::endl;
-    naive_gemm(A, B, C_ref);
+    gemm_suite.set_provider([](const GemmParams &p)
+                            {
+        GemmData d(p.M, p.N, p.K);
+        randomize(d.A);
+        randomize(d.B);
+        return d; });
 
-    auto gemm_load = Workload::gemm_f32(M, N, K);
+    gemm_suite.set_reference([](const GemmData &d, Tensor<float> &out)
+                             { naive_gemm(d.A, d.B, out); });
 
-    // results.push_back(run_benchmark("GEMM naive", dim, "gemm",
-    //                                 naive_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
+    gemm_suite.add_shape({512, 512, 512});
+    gemm_suite.add_shape({1024, 1024, 1024});
+    gemm_suite.add_shape({2048, 2048, 2048});
 
-    results.push_back(run_benchmark("GEMM ikj", dim, "gemm",
-                                    ikj_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
+    gemm_suite.add_kernel("Packed Parallel", [](const GemmData &d, Tensor<float> &out)
+                          { packed_parallel_gemm(d.A, d.B, out); });
 
-    results.push_back(run_benchmark("GEMM ikj broadcast a", dim, "gemm",
-                                    ikj_broadcast_a_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
+    gemm_suite.run();
 
-    results.push_back(run_benchmark("GEMM register blocking", dim, "gemm",
-                                    register_blocking_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
+    // ==========================================
+    // GEMV BENCHMARK SUITE
+    // ==========================================
+    BenchmarkSuite<GemvParams, GemvData> gemv_suite("GEMV F32");
 
-    results.push_back(run_benchmark("GEMM cache tiling", dim, "gemm",
-                                    cache_tiling_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
+    gemv_suite.complexity_calc = [](const GemvParams &p)
+    {
+        return std::make_pair(2ULL * p.M * p.N, 4ULL * (p.M * p.N + p.N + p.M));
+    };
 
-    results.push_back(run_benchmark("GEMM cache tiling packed", dim, "gemm",
-                                    cache_tiling_packed_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
+    gemv_suite.params_to_string = [](const GemvParams &p)
+    {
+        return "M=" + std::to_string(p.M) + ", N=" + std::to_string(p.N);
+    };
 
-    results.push_back(run_benchmark("GEMM packed parallel", dim, "gemm",
-                                    packed_parallel_gemm, gemm_load.first, gemm_load.second, C_ref, C_out, A, B));
+    gemv_suite.set_provider([](const GemvParams &p)
+                            {
+        GemvData d(p.M, p.N);
+        randomize(d.W);
+        randomize(d.x);
+        return d; });
 
-    // GEMV
-    std::cout << "Running GEMV Reference..." << std::endl;
+    gemv_suite.set_reference([](const GemvData &d, Tensor<float> &out)
+                             { naive_gemv(d.W, d.x, out); });
 
-    Tensor<float> W(M, N);
-    Tensor<float> x(N, 1), y_ref(M, 1), y_out(M, 1);
+    gemv_suite.add_shape({1024, 1024});
+    gemv_suite.add_shape({4096, 4096});
+    gemv_suite.add_shape({10000, 1000});
 
-    randomize(W);
-    randomize(x);
+    gemv_suite.add_kernel("Optimized", [](const GemvData &d, Tensor<float> &out)
+                          { gemv(d.W, d.x, out); });
 
-    naive_gemv(W, x, y_ref);
-
-    auto gemv_load = Workload::gemv_f32(M, N);
-
-    results.push_back(run_benchmark("GEMV naive", dim, "gemv",
-                                    naive_gemv, gemv_load.first, gemv_load.second, y_ref, y_out, W, x));
-
-    results.push_back(run_benchmark("GEMV unroll j", dim, "gemv",
-                                    unroll_j_gemv, gemv_load.first, gemv_load.second, y_ref, y_out, W, x));
-
-    results.push_back(run_benchmark("GEMV unroll i j", dim, "gemv",
-                                    unroll_i_j_gemv, gemv_load.first, gemv_load.second, y_ref, y_out, W, x));
-
-    results.push_back(run_benchmark("GEMV", dim, "gemv",
-                                    gemv, gemv_load.first, gemv_load.second, y_ref, y_out, W, x));
-
-    print_report(results);
+    gemv_suite.run();
 
     return 0;
 }

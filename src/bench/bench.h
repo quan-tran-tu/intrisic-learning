@@ -1,95 +1,148 @@
 #pragma once
 
 #include "core/tensor.h"
-
+#include "bench_stats.h"
 #include <iostream>
 #include <vector>
 #include <string>
 #include <chrono>
+#include <functional>
+#include <iomanip>
+#include <sstream>
 
-struct BenchmarkResult
+struct BenchConfig
 {
-    std::string type;
-    std::string name;
-    std::string size;
-    double avg_time_ms;
-    double max_time_ms;
-    double min_time_ms;
-    size_t total_ops;
-    size_t total_bytes;
-    float mse;
-};
-
-struct Workload
-{
-    static std::pair<size_t, size_t> gemm_f32(int M, int N, int K)
-    {
-        size_t ops = 2ULL * M * N * K;
-        size_t bytes = 4ULL * (M * K + K * N + M * N);
-        return {ops, bytes};
-    }
-
-    static std::pair<size_t, size_t> gemv_f32(int M, int N)
-    {
-        size_t ops = 2ULL * M * N;
-        size_t bytes = 4ULL * (M * N + N + M);
-        return {ops, bytes};
-    }
+    int warmup_iters = 5;
+    int run_iters = 20;
+    bool verify_output = true;
 };
 
 float calculate_mse(const Tensor<float> &ref, const Tensor<float> &target);
-void print_report(const std::vector<BenchmarkResult> &results);
 
-template <typename TFunc, typename... Args>
-BenchmarkResult run_benchmark(
-    std::string name,
-    int size,
-    std::string type,
-    TFunc kernel_func,
-    size_t expected_ops,
-    size_t expected_bytes,
-    const Tensor<float> &ref_output,
-    Tensor<float> &test_output,
-    Args &&...args)
+template <typename P, typename Data>
+class BenchmarkSuite
 {
-    const int WARMUP = 2;
-    const int ITERATIONS = 20;
+public:
+    using KernelFunc = std::function<void(const Data &, Tensor<float> &)>;
+    using DataProvider = std::function<Data(const P &)>;
+    using RefFunc = std::function<void(const Data &, Tensor<float> &)>;
 
-    for (int i = 0; i < WARMUP; ++i)
+    struct KernelEntry
     {
-        kernel_func(std::forward<Args>(args)..., test_output);
+        std::string name;
+        KernelFunc func;
+    };
+
+    BenchmarkSuite(std::string name, BenchConfig config = {})
+        : suite_name_(name), config_(config) {}
+
+    void add_shape(P params)
+    {
+        shapes_.push_back(params);
     }
 
-    double total_ms = 0.0;
-    double min_ms = 1e9;
-    double max_ms = 0.0;
-
-    for (int i = 0; i < ITERATIONS; ++i)
+    void add_kernel(std::string name, KernelFunc func)
     {
-        auto start = std::chrono::high_resolution_clock::now();
-
-        kernel_func(std::forward<Args>(args)..., test_output);
-
-        auto end = std::chrono::high_resolution_clock::now();
-        double ms = std::chrono::duration<double, std::milli>(end - start).count();
-
-        total_ms += ms;
-        if (ms < min_ms)
-            min_ms = ms;
-        if (ms > max_ms)
-            max_ms = ms;
+        kernels_.push_back({name, func});
     }
 
-    double avg_ms = total_ms / ITERATIONS;
-    float mse = calculate_mse(ref_output, test_output);
+    void set_provider(DataProvider dp) { provider_ = dp; }
 
-    std::string s;
-    if (type == "gemm")
-        s = std::to_string(size) + "^3";
-    else if (type == "gemv")
-        s = std::to_string(size) + "^2";
-    else
-        s = "unknown";
+    void set_reference(RefFunc rf) { reference_func_ = rf; }
 
-    return {type, name, s, avg_ms, min_ms, max_ms, expected_ops, expected_bytes, mse};
-}
+    std::function<std::pair<size_t, size_t>(const P &)> complexity_calc;
+
+    void run()
+    {
+        print_header();
+
+        for (const auto &params : shapes_)
+        {
+            Data data = provider_(params);
+
+            Tensor<float> ref_out = data.output.clone();
+            if (config_.verify_output && reference_func_)
+            {
+                reference_func_(data, ref_out);
+            }
+
+            auto [ops, bytes] = complexity_calc(params);
+
+            for (const auto &kernel : kernels_)
+            {
+                Tensor<float> test_out = data.output.clone();
+
+                for (int i = 0; i < config_.warmup_iters; ++i)
+                {
+                    kernel.func(data, test_out);
+                }
+
+                std::vector<double> times;
+                times.reserve(config_.run_iters);
+
+                for (int i = 0; i < config_.run_iters; ++i)
+                {
+                    auto start = std::chrono::high_resolution_clock::now();
+                    kernel.func(data, test_out);
+                    auto end = std::chrono::high_resolution_clock::now();
+
+                    double ms = std::chrono::duration<double, std::milli>(end - start).count();
+                    times.push_back(ms);
+                }
+
+                float mse = -1.0f;
+                if (config_.verify_output && reference_func_)
+                {
+                    mse = calculate_mse(ref_out, test_out);
+                }
+
+                BenchStats stats = compute_stats(times, ops, bytes, mse);
+                print_row(kernel.name, params_to_string(params), stats);
+            }
+            std::cout << std::string(120, '-') << "\n";
+        }
+        std::cout << std::string(120, '=') << "\n\n";
+    }
+
+    std::function<std::string(const P &)> params_to_string;
+
+private:
+    std::string suite_name_;
+    BenchConfig config_;
+    std::vector<P> shapes_;
+    std::vector<KernelEntry> kernels_;
+    DataProvider provider_;
+    RefFunc reference_func_;
+
+    void print_header()
+    {
+        std::cout << "SUITE: " << suite_name_ << "\n";
+        std::cout << std::string(120, '=') << "\n";
+        std::cout << std::left
+                  << std::setw(25) << "Kernel"
+                  << std::setw(18) << "Shape"
+                  << std::setw(12) << "Med(ms)"
+                  << std::setw(12) << "Avg(ms)"
+                  << std::setw(10) << "StdDev"
+                  << std::setw(12) << "GFLOPS"
+                  << std::setw(12) << "GB/s"
+                  << std::setw(10) << "MSE" << "\n";
+        std::cout << std::string(120, '-') << "\n";
+    }
+
+    void print_row(const std::string &name, const std::string &shape, const BenchStats &s)
+    {
+        double gflops = (s.median_ms > 0) ? (double)s.ops / (s.median_ms * 1e6) : 0.0;
+        double gbs = (s.median_ms > 0) ? (double)s.bytes / (s.median_ms * 1e6) : 0.0;
+
+        std::cout << std::left
+                  << std::setw(25) << name
+                  << std::setw(18) << shape
+                  << std::setw(12) << std::fixed << std::setprecision(3) << s.median_ms
+                  << std::setw(12) << s.avg_ms
+                  << std::setw(10) << std::setprecision(2) << s.std_dev_ms
+                  << std::setw(12) << std::setprecision(2) << gflops
+                  << std::setw(12) << std::setprecision(2) << gbs
+                  << std::setw(10) << std::scientific << std::setprecision(2) << s.mse << "\n";
+    }
+};

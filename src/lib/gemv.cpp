@@ -24,7 +24,7 @@ void naive_gemv(const Tensor<float> &W, const Tensor<float> &x, Tensor<float> &y
     const int W_stride = W.stride();
 
     // shape check
-    if (y.height() != W_height || x.height() != W_width || x.width() != 1 || y.width() != 1)
+    if (y.width() != W_height || x.width() != W_width || x.height() != 1 || y.height() != 1)
     {
         throw std::invalid_argument("invalid shape");
     }
@@ -52,7 +52,7 @@ void unroll_j_gemv(const Tensor<float> &W, const Tensor<float> &x, Tensor<float>
     const int W_stride = W.stride();
 
     // shape check
-    if (y.height() != W_height || x.height() != W_width || x.width() != 1 || y.width() != 1)
+    if (y.width() != W_height || x.width() != W_width || x.height() != 1 || y.height() != 1)
     {
         throw std::invalid_argument("invalid shape");
     }
@@ -96,7 +96,7 @@ void unroll_i_j_gemv(const Tensor<float> &W, const Tensor<float> &x, Tensor<floa
     const int W_stride = W.stride();
 
     // shape check
-    if (y.height() != W_height || x.height() != W_width || x.width() != 1 || y.width() != 1)
+    if (y.width() != W_height || x.width() != W_width || x.height() != 1 || y.height() != 1)
     {
         throw std::invalid_argument("invalid shape");
     }
@@ -182,7 +182,7 @@ void gemv(const Tensor<float> &W, const Tensor<float> &x, Tensor<float> &y)
     const int W_stride = W.stride();
 
     // shape check
-    if (y.height() != W_height || x.height() != W_width || x.width() != 1 || y.width() != 1)
+    if (y.width() != W_height || x.width() != W_width || x.height() != 1 || y.height() != 1)
     {
         throw std::invalid_argument("invalid shape");
     }

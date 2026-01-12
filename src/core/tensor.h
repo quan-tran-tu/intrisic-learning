@@ -2,6 +2,8 @@
 
 #include <memory>
 #include <immintrin.h>
+#include <cstring>
+#include <new>
 
 struct AlignedFree
 {
@@ -44,4 +46,23 @@ public:
 
         data_ = std::unique_ptr<T[], AlignedFree>(raw_ptr);
     }
+
+    Tensor<T> clone() const
+    {
+        Tensor<T> copy(height_, width_, channels_);
+
+        size_t total_bytes = static_cast<size_t>(height_) * stride_ * sizeof(T);
+
+        std::memcpy(copy.data(), data_.get(), total_bytes);
+
+        return copy;
+    }
+
+    // disable implicit copying to prevent expensive accidental copies
+    Tensor(const Tensor &) = delete;
+    Tensor &operator=(const Tensor &) = delete;
+
+    // allow transfer of ownership
+    Tensor(Tensor &&) = default;
+    Tensor &operator=(Tensor &&) = default;
 };
